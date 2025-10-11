@@ -1,1 +1,90 @@
 
+const int motorR_in1 = 10;
+const int motorR_in2 = 11;
+const int motorR_ena = 4; // PWM pin for speed
+
+const int motorL_in3 = 12;
+const int motorL_in4 = 13;
+const int motorL_enb = 5; // PWM pin for speed
+
+const int encoderR_A = 2; 
+const int encoderL_A = 3; 
+
+
+
+volatile long encoderR_pos = 0;
+volatile long encoderL_pos = 0;
+
+int baseSpeed = 180;
+
+double Kp = 0.8;   
+double Ki = 0;     
+double Kd = 0;
+
+double error = 0;
+double lastError = 0;
+double integral = 0;
+double derivative = 0;
+
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(motorR_in1, OUTPUT);
+  pinMode(motorR_in2, OUTPUT);
+  pinMode(motorR_ena, OUTPUT);
+  pinMode(motorL_in3, OUTPUT);
+  pinMode(motorL_in4, OUTPUT);
+  pinMode(motorL_enb, OUTPUT);
+
+  pinMode(encoderR_A, INPUT_PULLUP);
+  pinMode(encoderL_A, INPUT_PULLUP);
+
+  attachInterrupt(digitalPinToInterrupt(encoderR_A), readEncoderR, RISING);
+  attachInterrupt(digitalPinToInterrupt(encoderL_A), readEncoderL, RISING);
+  
+  Serial.println("PID Sync Algorithm Running...");
+}
+
+void loop() {
+  error = encoderL_pos - encoderR_pos;
+  
+  integral += error;
+  
+  derivative = error - lastError;
+  
+  double correction = (Kp * error) + (Ki * integral) + (Kd * derivative);
+  
+  lastError = error;
+  
+  int rightMotorSpeed = baseSpeed - correction+25;
+  int leftMotorSpeed = baseSpeed + correction;
+
+  rightMotorSpeed = constrain(rightMotorSpeed, 0, 255);
+  leftMotorSpeed = constrain(leftMotorSpeed, 0, 255);
+
+  digitalWrite(motorR_in1, HIGH);
+  digitalWrite(motorR_in2, LOW);
+  digitalWrite(motorL_in3, HIGH);
+  digitalWrite(motorL_in4, LOW);
+  
+  analogWrite(motorR_ena, rightMotorSpeed);
+  analogWrite(motorL_enb, leftMotorSpeed);
+
+  Serial.print("L:");
+  Serial.print(encoderL_pos);
+  Serial.print(" R:");
+  Serial.print(encoderR_pos);
+  Serial.print(" Correction:");
+  Serial.println(correction);
+  
+  delay(20);
+}
+=
+void readEncoderR() {
+  encoderR_pos++;
+}
+
+void readEncoderL() {
+  encoderL_pos++;
+}
